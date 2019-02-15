@@ -3,7 +3,7 @@ import json
 import struct
 import io
 import logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
 
 dtype2struct = {'uint8': 'B', 'uint32': 'I', 'float64': 'd', 'float32': 'f'}
@@ -108,5 +108,3 @@ if __name__ == '__main__':
     # plt.imshow(np.array(files[1]['data']['image']))
     logger.info("--- file displayed in %s seconds ---" % (time.time() - start_time))
     # Experiment: 7GB csv file --> 21MB smlm file; loading time: 21s with python-numpy implemetation, 116s with pure python implementation.
-    
-    

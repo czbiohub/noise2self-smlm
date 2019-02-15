@@ -10,7 +10,7 @@ from PIL import Image
 from loader.file_loader import FileLoader
 from loader.folder_dataset import FolderDataset
 from loader.image_utils import CenterCropNumpy
-
+from loader.smlm_file import import_smlm
 
 LocalizationTable = collections.namedtuple("LocalizationTable", "array, xy_range, z_range, f_range")
 
@@ -76,6 +76,46 @@ class ThunderstormCSVLoader(FileLoader):
                 return True
             npzf = path + '.npz'
             np.savez(npzf, xyfArr=table.array)
+        if self.memory_cache:
+            self.__cache[path] = table
+        return True
+
+    def __call__(self, path):
+        if self.__current_path == path:
+            return self.__current_table
+        self.__current_table = self.load(path)
+        self.__current_path = path
+        return self.__current_table
+
+
+class SmlmLoader(FileLoader):
+    def __init__(self, xy_range, z_range=None, memory_cache=False):
+        self.xy_range = xy_range
+        self.z_range = z_range
+        self.memory_cache = memory_cache
+
+        self.__current_path = None
+        self.__current_table = None
+        self.__cache = {}
+
+    def load(self, csvFile):
+        if csvFile in self.__cache:
+            return self.__cache[csvFile]
+        assert csvFile.endswith('.smlm')
+        manifest, files = import_smlm(csvFile)
+        table = files[0]['data']['tableDict']
+        xyfArr = np.stack([table['x'], table['y'], table['frame']], axis=1)
+        xyfArr = xyfArr[np.sum(np.isnan(xyfArr), axis=1)==0, :]
+        xyfArr = xyfArr.astype('int32')
+        return LocalizationTable(array=xyfArr, xy_range=self.xy_range, z_range=self.z_range, f_range=(xyfArr[:, 2].min(), xyfArr[:, 2].max()))
+
+    def cache(self, path):
+        try:
+            table = self.load(path)
+        except KeyboardInterrupt:
+            raise
+        except Exception as e:
+            return False
         if self.memory_cache:
             self.__cache[path] = table
         return True
