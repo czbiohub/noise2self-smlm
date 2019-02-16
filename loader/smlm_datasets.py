@@ -847,16 +847,14 @@ class CompositeDataset():
 def get_localization_source(data_dir, file_type = 'smlm', A_frame=1000, B_frame=1000, A_frame_limit=[0, 6000], B_frame_limit=[0, 1.0],
                             output_clip = (0, 5), top_left=(0, 0), center_crop=None,
                             zero_offset=False, input_clip =(0, 20), input_size_nm=512*106,
-                            pixel_size=20, target_size=(2560, 2560)):
+                            pixel_size=20, target_size=(2560, 2560), return_frame_range=False,
+                            memory_cache=True, repeat=1):
 
     lCrop = LocalizationCrop(fit_data=True, top_left=top_left)
     lRCrop = LocalizationRandomCrop(crop_size=[pixel_size * target_size[0], pixel_size * target_size[1]])
     fSamplerIn = LocalizationFrameSampler(frame_num=A_frame, frame_limit=A_frame_limit, zero_offset=zero_offset)
     fSamplerOut = LocalizationFrameSampler(frame_num=B_frame, frame_limit=B_frame_limit)
-
     hRender = HistogramRendering(pixel_size=pixel_size, value_range= (0, 255), target_size=target_size)
-
-    image_per_file = 1
 
     if center_crop:
         cropTest = CenterCropNumpy(size=center_crop)
@@ -875,22 +873,25 @@ def get_localization_source(data_dir, file_type = 'smlm', A_frame=1000, B_frame=
             histout = cropTest(histout)
         histin = np.clip(histin, output_clip[0], output_clip[1])
         histout = np.clip(histout, output_clip[0], output_clip[1])
-        return histin, histout, imgDict['table.path'], tablein.f_range, tableout.f_range
+        if return_frame_range:
+            return histin, histout, imgDict['table.path'], tablein.f_range, tableout.f_range
+        else:
+            return histin, histout, imgDict['table.path']
 
     if file_type == 'csv':
-        csvLoader = ThunderstormCSVLoader([0, input_size_nm, 0, input_size_nm])
+        csvLoader = ThunderstormCSVLoader([0, input_size_nm, 0, input_size_nm], memory_cache=memory_cache)
         source_train = FolderDataset(data_dir,
                              channels = {'table': {'filter': "*.csv", 'loader': csvLoader} },
                              transform = transform_train,
                              recursive=False,
-                             repeat=image_per_file)
+                             repeat=repeat)
     elif file_type == 'smlm':
-        smlmLoader = SmlmLoader([0, input_size_nm, 0, input_size_nm])
+        smlmLoader = SmlmLoader([0, input_size_nm, 0, input_size_nm], memory_cache=memory_cache)
         source_train = FolderDataset(data_dir,
                              channels = {'table': {'filter': '*.smlm', 'loader': smlmLoader} },
                              transform = transform_train,
                              recursive=False,
-                             repeat=image_per_file)
+                             repeat=repeat)
     else:
         raise NotImplemented
 
